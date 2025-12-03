@@ -24,9 +24,6 @@ const nextConfig = {
     // Add experimental features here if needed
   },
 
-  // Disable static generation for error pages
-  generateStaticParams: false,
-
   // Configure headers for security and iframe embedding
   async headers() {
     return [
