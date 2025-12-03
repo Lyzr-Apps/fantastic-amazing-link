@@ -6,6 +6,7 @@ import { useState, useEffect, useRef } from 'react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { ScrollArea } from '@/components/ui/scroll-area'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Send, Plus, Menu, X } from 'lucide-react'
 
 interface Message {
@@ -41,33 +42,66 @@ interface AgentResponse {
   session_id?: string
 }
 
-const CHAT_AGENT_ID = '69303ff22bb6b2ddb363df81'
+interface Agent {
+  id: string
+  name: string
+  description: string
+}
+
+const AGENTS: Agent[] = [
+  {
+    id: '69303ff22bb6b2ddb363df81',
+    name: 'Chat Assistant',
+    description: 'General knowledge assistant for any topic'
+  },
+  {
+    id: '693040ee6b01be7c2f9fe6f6',
+    name: 'Science Agent',
+    description: 'Expert in science, physics, chemistry, biology, and astronomy'
+  }
+]
 
 function getTitleFromMessage(message: string): string {
   return message.substring(0, 40) + (message.length > 40 ? '...' : '')
 }
 
-const WELCOME_MESSAGE: Message = {
-  id: 'welcome',
-  role: 'assistant',
-  content: 'Hello! I\'m your Knowledge Chat Assistant. Ask me anything and I\'ll do my best to help. Feel free to ask follow-up questions and I\'ll maintain the context of our conversation.',
-  timestamp: new Date(),
+function getWelcomeMessage(agentName: string): Message {
+  const messages: Record<string, string> = {
+    'Chat Assistant': 'Hello! I\'m your Knowledge Chat Assistant. Ask me anything and I\'ll do my best to help. Feel free to ask follow-up questions and I\'ll maintain the context of our conversation.',
+    'Science Agent': 'Hello! I\'m your Science Agent. I specialize in explaining scientific concepts across physics, chemistry, biology, astronomy, and more. Feel free to ask me about any science-related topic!'
+  }
+  return {
+    id: 'welcome',
+    role: 'assistant',
+    content: messages[agentName] || 'Hello! How can I help you today?',
+    timestamp: new Date(),
+  }
 }
 
-const STARTER_QUESTIONS = [
+const STARTER_QUESTIONS_GENERAL = [
   'What are the benefits of regular exercise?',
   'How can I improve my productivity?',
   'What is machine learning?',
 ]
 
+const STARTER_QUESTIONS_SCIENCE = [
+  'What is photosynthesis?',
+  'How do black holes work?',
+  'What is the theory of relativity?',
+]
+
 export default function ChatPage() {
   const [conversations, setConversations] = useState<Conversation[]>([])
   const [currentConversationId, setCurrentConversationId] = useState<string>('')
-  const [messages, setMessages] = useState<Message[]>([WELCOME_MESSAGE])
+  const [selectedAgent, setSelectedAgent] = useState<string>(AGENTS[0].id)
+  const [messages, setMessages] = useState<Message[]>([getWelcomeMessage(AGENTS[0].name)])
   const [inputValue, setInputValue] = useState('')
   const [isLoading, setIsLoading] = useState(false)
   const [sidebarOpen, setSidebarOpen] = useState(true)
   const scrollRef = useRef<HTMLDivElement>(null)
+
+  const currentAgent = AGENTS.find(a => a.id === selectedAgent) || AGENTS[0]
+  const starterQuestions = selectedAgent === AGENTS[1].id ? STARTER_QUESTIONS_SCIENCE : STARTER_QUESTIONS_GENERAL
 
   useEffect(() => {
     const saved = localStorage.getItem('conversations')
@@ -104,16 +138,26 @@ export default function ChatPage() {
 
   const handleNewChat = () => {
     const newId = Date.now().toString()
+    const welcomeMsg = getWelcomeMessage(currentAgent.name)
     const newConversation: Conversation = {
       id: newId,
-      title: 'New Conversation',
-      messages: [WELCOME_MESSAGE],
+      title: `${currentAgent.name} - New Chat`,
+      messages: [welcomeMsg],
       createdAt: new Date(),
       updatedAt: new Date(),
     }
     setConversations([newConversation, ...conversations])
     setCurrentConversationId(newId)
-    setMessages([WELCOME_MESSAGE])
+    setMessages([welcomeMsg])
+    setInputValue('')
+  }
+
+  const handleAgentChange = (newAgentId: string) => {
+    setSelectedAgent(newAgentId)
+    const agent = AGENTS.find(a => a.id === newAgentId) || AGENTS[0]
+    const welcomeMsg = getWelcomeMessage(agent.name)
+    setMessages([welcomeMsg])
+    setCurrentConversationId('')
     setInputValue('')
   }
 
@@ -148,7 +192,7 @@ export default function ChatPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           message: inputValue,
-          agent_id: CHAT_AGENT_ID,
+          agent_id: selectedAgent,
         }),
       })
 
@@ -300,8 +344,22 @@ export default function ChatPage() {
               )}
             </button>
             <h1 className="text-xl font-semibold text-gray-900">
-              Knowledge Chat Assistant
+              Knowledge Chat
             </h1>
+          </div>
+          <div className="w-48">
+            <Select value={selectedAgent} onValueChange={handleAgentChange}>
+              <SelectTrigger className="bg-white border-gray-300 text-gray-900">
+                <SelectValue placeholder="Select agent" />
+              </SelectTrigger>
+              <SelectContent>
+                {AGENTS.map((agent) => (
+                  <SelectItem key={agent.id} value={agent.id}>
+                    {agent.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
         </div>
 
